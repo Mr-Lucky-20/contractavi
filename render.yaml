@@ -1,0 +1,22 @@
+services:
+  - type: web
+    name: struct-chhattisgarh-marketplace
+    env: node
+    plan: free
+    region: singapore # Closest low-latency region to India / Chhattisgarh
+    buildCommand: npm run render-build
+    startCommand: npm start
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      - key: JWT_SECRET
+        generateValue: true
+      - key: JWT_EXPIRES_IN
+        value: 7d
+      # MongoDB Connection: Paste your free MongoDB Atlas connection string here
+      # If left blank, the app will automatically launch an in-memory database with pre-seeded data
+      - key: MONGODB_URI
+        sync: false

@@ -51,10 +51,15 @@ export const register = async (req, res) => {
 
     const existing = await Owner.findOne({ email: emailCheck.email });
     if (existing) {
-      return res.status(409).json({
-        success: false,
-        message: 'Email already registered.',
-      });
+      const invCount = await Inventory.countDocuments({ ownerId: existing._id });
+      if (invCount === 0) {
+        await Owner.findByIdAndDelete(existing._id);
+      } else {
+        return res.status(409).json({
+          success: false,
+          message: 'Email already registered.',
+        });
+      }
     }
 
     const owner = await Owner.create({
@@ -78,7 +83,6 @@ export const register = async (req, res) => {
 
     const defaultMaterials = [
       {
-        ownerId: owner._id,
         materialType: 'Cement',
         brand: 'UltraTech PPC Cement',
         spec: 'Grade 53 Portland Pozzolana Cement',
@@ -88,7 +92,6 @@ export const register = async (req, res) => {
         minOrderQty: 50,
       },
       {
-        ownerId: owner._id,
         materialType: 'Steel/Saria',
         brand: 'Fe-550D TMT Rebar',
         spec: 'High-Ductility TMT Rebars (10mm, 12mm, 16mm)',
@@ -98,7 +101,6 @@ export const register = async (req, res) => {
         minOrderQty: 1,
       },
       {
-        ownerId: owner._id,
         materialType: 'Bricks',
         brand: 'Kiln Fired Red Bricks',
         spec: 'Standard Heavy Density (9x4.25x2.75 in)',
@@ -108,7 +110,6 @@ export const register = async (req, res) => {
         minOrderQty: 2000,
       },
       {
-        ownerId: owner._id,
         materialType: 'Sand',
         brand: 'River Washed Sand',
         spec: 'Double-Washed Plastering Sand Zone II',
@@ -126,9 +127,19 @@ export const register = async (req, res) => {
         stockStatus: 'In Stock',
         minOrderQty: 300,
       },
-    ];
+    ].map((m) => ({
+      ...m,
+      ownerId: owner._id,
+      lastUpdatedTimestamp: new Date(),
+    }));
 
-    await Inventory.insertMany(defaultMaterials);
+    try {
+      await Inventory.insertMany(defaultMaterials);
+    } catch (invErr) {
+      await Owner.findByIdAndDelete(owner._id);
+      throw invErr;
+    }
+
     const token = generateToken(owner._id);
 
     return res.status(201).json({
